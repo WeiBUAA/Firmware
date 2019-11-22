@@ -75,9 +75,9 @@ using namespace matrix;
 
 Tailsitter::Tailsitter(VtolAttitudeControl *attc) :
 	VtolType(attc),
-	_accel_filter_x(CTRL_FREQ, 15.0f),
-	_accel_filter_y(CTRL_FREQ, 15.0f),
-	_accel_filter_z(CTRL_FREQ, 15.0f)
+	_accel_filter_x(CTRL_FREQ, 12.0f),
+	_accel_filter_y(CTRL_FREQ, 12.0f),
+	_accel_filter_z(CTRL_FREQ, 12.0f)
 {
 	_vtol_schedule.flight_mode = MC_MODE;
 	_vtol_schedule._trans_start_t = 0.0f;
@@ -285,62 +285,80 @@ void Tailsitter::reset_trans_start_state()
  ***/
 float Tailsitter::control_vertical_acc(float time_since_trans_start, float vert_acc_cmd, float vert_vel_cmd)
 {
+	float dt = 1.0f / 250.0f;
 	//float ILC_input    = ILC_in(time_since_trans_start);
-
-	float bx_acc_cmd   = 0.0f;
-	float bx_acc_err   = 0.0f;
-	float bx_acc_err_i = 0.0f;
+	float bx_acc_filt  = _accel_filter_x.apply(_sensor_acc->x);
+	float bz_acc_filt  = _accel_filter_z.apply(_sensor_acc->z);
+	float pitchrate_filt = _accel_filter_y.apply(_v_att->pitchspeed);
+	//float bx_acc_cmd   = 0.0f;
+	//float bx_acc_err   = 0.0f;
+	//float bx_acc_err_i = 0.0f;
 
 	/* bx_acc_kp and bx_acc_ki are from loopshaping */
-	float bx_acc_kp    = 0.006f;
-	float bx_acc_ki    = 0.003f;
+	//float bx_acc_kp    = 0.006f;
+	//float bx_acc_ki    = 0.003f;
 	float thrust_cmd   = 0.0f;
-	float cos_pitch    = 0.0f;
-
-	/* calculate the states */
-	float airspeed    = _airspeed->indicated_airspeed_m_s;
-	//float dyn_pressure = 0.5f * 1.237f * airspeed * airspeed;
+	//float cos_pitch    = 0.0f;
 
 	matrix::EulerFromQuatf euler = matrix::Quatf(_v_att->q);
-	float vz         = _local_pos->vz;
-	float ang_of_vel = atan2f(vz, airspeed) * (math::constrain(vz * vz / (5.0f * 5.0f), 0.0f, 1.0f));
 	float pitch      = math::constrain(- euler.theta(), DEG_TO_RAD(0.001f), DEG_TO_RAD(89.99f)); // theta is minus zero
 	float roll       = math::constrain(  euler.phi(), DEG_TO_RAD(0.001f), DEG_TO_RAD(89.99f));
-	float AOA        = math::constrain(ang_of_vel + DEG_TO_RAD(100.0f) - pitch, DEG_TO_RAD(0.001f), DEG_TO_RAD(89.99f));
 
-	
-	//float horiz_vel  = sqrtf((_local_pos->vx * _local_pos->vx) + (_local_pos->vy * _local_pos->vy));
-	float acc_iz_fdb = (_sensor_acc->z * sinf(pitch) - _sensor_acc->x * cosf(pitch))*cosf(roll);
-	//float acc_ix_fdb = (-_sensor_acc->z * cosf(pitch) + _sensor_acc->x * sinf(pitch));
-	float acc_iz_err = vert_acc_cmd + 9.8f + acc_iz_fdb;
-	
+	/** incremental control **/	
+	float horiz_vel  = sqrtf((_local_pos->vx * _local_pos->vx) + (_local_pos->vy * _local_pos->vy));
+	float thrust_f   = _v_att_sp->thrust_body[2] / _mc_hover_thrust * 9.8f;
+	float thrust_to_acc = -_mc_hover_thrust / 9.8f;
+	float acc_iz_fdb = (bz_acc_filt * sinf(pitch) - bx_acc_filt * cosf(pitch))*cosf(roll) + 9.8f;
+	float acc_iz_err = vert_acc_cmd- acc_iz_fdb;
+	float delt_thrust = (-acc_iz_err - (thrust_f * sinf(-pitch) + lift_d_theta(horiz_vel, -pitch)) * pitchrate_filt * dt) / cos(pitch) * thrust_to_acc;
 
-	if ((fabsf(AOA) < DEG_TO_RAD(89.999f)) && (fabsf(AOA) >= DEG_TO_RAD(0.001f)))
+	if ((fabsf(pitch) < DEG_TO_RAD(89.999f)) && (fabsf(pitch) >= DEG_TO_RAD(0.001f)))
 	{
 		/***
-		CL_temp           = get_CL(AOA);
-		lift_weight_ratio = dyn_pressure * 1.0f * CL_temp * 0.5f/ (1.68f * 9.8f);
-		thrust_cmd        = (-_mc_hover_thrust - lift_weight_ratio * (-_mc_hover_thrust) + vert_acc_cmd / 9.8f * (-_mc_hover_thrust)) / cosf(pitch_ang);
-		 ***/
 		cos_pitch     = math::constrain(cosf(pitch), 0.2f, 1.0f);
 		bx_acc_cmd    = (9.8f + _sensor_acc->z * sinf(pitch) - acc_iz_err) / (cos_pitch - 2.6f * sinf(pitch) * (1 - cosf(pitch)));
 		bx_acc_cmd    = math::constrain(bx_acc_cmd, -2.0f * 9.8f, 2.0f * 9.8f);
 		bx_acc_err    = bx_acc_cmd - _sensor_acc->x;
 		bx_acc_err_i  = _vtol_vehicle_status->bx_acc_i + bx_acc_ki * bx_acc_err * 0.004f;
-		thrust_cmd    = bx_acc_cmd / 9.8f * (-_mc_hover_thrust) + bx_acc_err * bx_acc_kp + bx_acc_err_i;
+		***/
+		
+		thrust_cmd    = _v_att_sp->thrust_body[2] + delt_thrust;
 	}
 	else
 	{
 		//lift_weight_ratio = 0.0f;
-		thrust_cmd        = -_mc_hover_thrust;
-		bx_acc_err_i      = 0.0f;
+		thrust_cmd = -_mc_hover_thrust;
 	}
 
-	_vtol_vehicle_status->bx_acc_cmd = bx_acc_cmd;
-	_vtol_vehicle_status->bx_acc_e   = bx_acc_err;
-	_vtol_vehicle_status->bx_acc_i   = bx_acc_err_i;
+	_vtol_vehicle_status->acc_iz_fdb = acc_iz_fdb;
+	_vtol_vehicle_status->delt_thrust     = delt_thrust;
 
 	return thrust_cmd;
+}
+
+float Tailsitter::lift_d_theta(float horiz_vel, float theta)
+{
+	float L_d_theta = 0.0f;
+	if (horiz_vel <= 12.0f)
+	{
+		if (theta > DEG_TO_RAD(-40.f))
+		{
+			L_d_theta = 0.0f;
+		}
+		else if (theta > DEG_TO_RAD(-80.f))
+		{
+			L_d_theta = 24.f * (theta + DEG_TO_RAD(40.f)) / DEG_TO_RAD(40.f);
+		}
+		else
+		{
+			L_d_theta = 1.0f;
+		}
+	}
+	if (horiz_vel > 12.0f)
+	{
+		L_d_theta = -(horiz_vel - 8.5f) * 6.88f;
+	}
+	return L_d_theta;
 }
 
 /* 
@@ -428,14 +446,18 @@ float Tailsitter::control_altitude(float time_since_trans_start, float alt_cmd, 
 
 	/* acc loop*/
 	float thrust_cmd = 0.0f;
-	if ((control_loop_mode == CONTROL_VEL_WITHOUT_ACC) || (control_loop_mode == CONTROL_POS))
+	switch(control_loop_mode)
 	{
-		thrust_cmd = math::constrain(vert_acc_cmd / 9.8f+ (- _mc_hover_thrust), 0.10f,0.95f);
+		case CONTROL_ACC:
+			thrust_cmd = math::constrain(control_vertical_acc(time_since_trans_start, -vert_acc_cmd, vz_cmd), 0.10f, 0.95f);
+			break;
+		case CONTROL_VEL_WITHOUT_ACC:
+		case CONTROL_POS:
+		default:
+			thrust_cmd = math::constrain(vert_acc_cmd / 9.8f+ (- _mc_hover_thrust), 0.10f,0.95f);
+			break;
 	}
-	else
-	{
-		thrust_cmd = math::constrain(control_vertical_acc(time_since_trans_start, vert_acc_cmd, vz_cmd), 0.10f, 0.95f);
-	}
+	
 
 	/* record data */
 	_vtol_vehicle_status->vz_cmd       = vz_cmd;
@@ -445,24 +467,29 @@ float Tailsitter::control_altitude(float time_since_trans_start, float alt_cmd, 
 	_vtol_vehicle_status->ticks_since_trans ++;
 
 	/* send back command and feedback data */
-	mavlink_log_critical(&mavlink_log_pub, "thr_cmd:%.5f", (double)(thrust_cmd));
+	//mavlink_log_critical(&mavlink_log_pub, "thr_cmd:%.5f", (double)(thrust_cmd));
 
 	return (-1.0f * thrust_cmd);
 }
 
 float Tailsitter::calc_pitch_rot(float time_since_trans_start) {
 	float angle = 0.0;
-	for (int i = 0; i <= (POINT_NUM - 1); i ++) {
+
+	for (int i = 0; i < (POINT_NUM - 1); i ++) {
 		if (time_since_trans_start <= POINT_ACTION[0][i+1]) {
 			angle = POINT_ACTION[1][i] + (time_since_trans_start - POINT_ACTION[0][i]) / (POINT_ACTION[0][i+1] - POINT_ACTION[0][i]) * (POINT_ACTION[1][i+1] - POINT_ACTION[1][i]);
 			angle = DEG_TO_RAD(angle);
 			break;
 		}
-		if (time_since_trans_start >= POINT_ACTION[0][POINT_NUM - 1]) {
-			angle = DEG_TO_RAD(POINT_ACTION[1][POINT_NUM - 1]);
-		}
 	}
-	return angle;
+
+	if (time_since_trans_start >= POINT_ACTION[0][POINT_NUM - 1]) 
+	{
+		angle = DEG_TO_RAD(POINT_ACTION[1][POINT_NUM - 1]);
+	}
+
+	mavlink_log_critical(&mavlink_log_pub, "pitchsp:%.5f", (double)(-RAD_TO_DEG(angle)));
+	return -1.0f * angle;
 }
 
 float Tailsitter::calc_roll_sp()
@@ -617,7 +644,7 @@ void Tailsitter::update_transition_state()
 		State_Machine_Initialize();
 		reset_trans_start_state();
 		_vert_i_term = 0.0f;
-		POINT_ACTION[1][0] = RAD_TO_DEG(_trans_start_pitch);
+		//POINT_ACTION[1][0] = RAD_TO_DEG(_trans_start_pitch);
 	}
 
 	float time_since_trans_start = (float)(hrt_absolute_time() - _vtol_schedule._trans_start_t) * 1e-6f;
@@ -639,7 +666,7 @@ void Tailsitter::update_transition_state()
 			_yaw = _trans_start_yaw;
 
 			/* Altitude control */
-			_v_att_sp->thrust_body[2] = control_altitude(time_since_trans_start, _alt_sp, VERT_CONTROL_MODE);
+			_v_att_sp->thrust_body[2] = control_altitude(time_since_trans_start, _alt_sp, CONTROL_ACC);
 
 			/* save the thrust value at the end of the transition */
 			_trans_end_thrust = _actuators_mc_in->control[actuator_controls_s::INDEX_THROTTLE];
@@ -827,7 +854,7 @@ void Tailsitter::fill_actuator_outputs()
 		_actuators_out_0->control[actuator_controls_s::INDEX_ROLL] = _actuators_mc_in->control[actuator_controls_s::INDEX_ROLL];
 		_actuators_out_0->control[actuator_controls_s::INDEX_PITCH] = _actuators_mc_in->control[actuator_controls_s::INDEX_PITCH];
 		_actuators_out_0->control[actuator_controls_s::INDEX_YAW] = _actuators_mc_in->control[actuator_controls_s::INDEX_YAW];
-		_actuators_out_0->control[actuator_controls_s::INDEX_THROTTLE] = math::constrain(_actuators_mc_in->control[actuator_controls_s::INDEX_THROTTLE], 0.3f, 0.75f);
+		_actuators_out_0->control[actuator_controls_s::INDEX_THROTTLE] = math::constrain(_actuators_mc_in->control[actuator_controls_s::INDEX_THROTTLE], 0.3f, 1.0f);
 
 		_actuators_out_1->control[actuator_controls_s::INDEX_ROLL] = -_actuators_fw_in->control[actuator_controls_s::INDEX_ROLL];	// roll elevon
 		_actuators_out_1->control[actuator_controls_s::INDEX_PITCH] = -_actuators_fw_in->control[actuator_controls_s::INDEX_PITCH];	// pitch elevon

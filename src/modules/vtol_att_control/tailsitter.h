@@ -42,6 +42,8 @@
 #ifndef TAILSITTER_H
 #define TAILSITTER_H
 
+#define POINT_NUM (5)
+
 #include "vtol_type.h"
 #include "ILC_DATA.h"
 #include "euler_zxy.h"
@@ -84,6 +86,7 @@ public:
 	virtual float get_theta_cmd();
 	virtual float calc_pitch_b_trans(float dt);
 	virtual float calc_roll_b_trans(float dt);
+	float lift_d_theta(float horiz_vel, float theta);
 	bool is_ground_speed_satisfied();
 
 private:
@@ -130,7 +133,8 @@ private:
 	{
 		CONTROL_POS = 0,
 		CONTROL_VEL,
-		CONTROL_VEL_WITHOUT_ACC
+		CONTROL_VEL_WITHOUT_ACC,
+		CONTROL_ACC
 	};
 
 	struct {
@@ -168,9 +172,9 @@ private:
 	math::LowPassFilter2p	_accel_filter_y;
 	math::LowPassFilter2p	_accel_filter_z;
 
-	float POINT_ACTION[2][POINT_NUM] = {
-	{0.0f, 2.5f, 3.0f, 3.5f},
-	{0.0f, -88.0f, -88.0f, -88.0f}
+	const float POINT_ACTION[2][POINT_NUM] = {
+	{0.0f, 2.0f, 3.0f, 4.0f, 5.0f},
+	{0.0f, 80.0f, 80.0f, 0.0f, 80.0f}
 	};
 
 	float _alt_sp;

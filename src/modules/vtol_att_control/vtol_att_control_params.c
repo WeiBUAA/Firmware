@@ -118,6 +118,13 @@ PARAM_DEFINE_INT32(VT_SWEEP_TYPE, 0);
  */
 PARAM_DEFINE_FLOAT(VT_SWEEP_AMP, 0.2f);
 
+
+/*
+* The parameters of the vertical position controller
+* Kp 
+*/
+PARAM_DEFINE_FLOAT(VT_Z_DIST_KP, 1.0f);
+
 /*
 * The parameters of the vertical velocity controller
 * Kp 

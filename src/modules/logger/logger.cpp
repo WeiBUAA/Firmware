@@ -636,8 +636,8 @@ void Logger::add_default_topics()
 	add_topic("manual_control_setpoint", 200);
 	add_topic("mission",0);
 	add_topic("mission_result",0);
-	add_topic("fw_virtual_attitude_setpoint",0);
-	add_topic("mc_virtual_attitude_setpoint",0);
+	//add_topic("fw_virtual_attitude_setpoint",0);
+	//add_topic("mc_virtual_attitude_setpoint",0);
 	add_topic("actuator_controls_virtual_fw",0);
 	add_topic("actuator_controls_virtual_mc",0);
 	//add_topic("optical_flow", 50);
@@ -645,7 +645,7 @@ void Logger::add_default_topics()
 	add_topic("vehicle_control_mode", 0);
 	add_topic("radio_status");
 	add_topic("rate_ctrl_status", 0);
-	add_topic("sensor_combined");
+	//add_topic("sensor_combined");
 	add_topic("sensor_accel");
 	//add_topic("sensor_preflight", 200);
 	add_topic("system_power", 500);
@@ -666,7 +666,7 @@ void Logger::add_default_topics()
 	add_topic("vehicle_status", 200);
 	add_topic("vehicle_status_flags", 100);
 	add_topic("vtol_vehicle_status", 0);
-	add_topic("wind_estimate", 0);
+	//add_topic("wind_estimate", 0);
 
 #ifdef CONFIG_ARCH_BOARD_PX4_SITL
 	add_topic("actuator_controls_virtual_fw");

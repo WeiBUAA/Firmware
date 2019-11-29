@@ -92,6 +92,7 @@ VtolAttitudeControl::VtolAttitudeControl()
 	_params_handles.fw_motors_off = param_find("VT_FW_MOT_OFFID");
 	_params_handles.vt_sweep_type = param_find("VT_SWEEP_TYPE");
 	_params_handles.vt_sweep_amp = param_find("VT_SWEEP_AMP");
+	_params_handles.vt_z_dist_kp = param_find("VT_Z_DIST_KP");
 	_params_handles.vt_vz_control_kp = param_find("VT_VZ_CONTROL_KP");
 	_params_handles.vt_vz_control_ki = param_find("VT_VZ_CONTROL_KI");
 	_params_handles.vt_vz_control_kd = param_find("VT_VZ_CONTROL_KD");
@@ -539,6 +540,8 @@ VtolAttitudeControl::parameters_update()
 	param_get(_params_handles.front_trans_time_min, &_params.front_trans_time_min);
 
 	param_get(_params_handles.vt_sweep_amp, &_params.vt_sweep_amp);
+
+	param_get(_params_handles.vt_z_dist_kp, &_params.vt_z_dist_kp);
 
 	param_get(_params_handles.vt_vz_control_kp, &_params.vt_vz_control_kp);
 

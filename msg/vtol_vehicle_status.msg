@@ -19,6 +19,8 @@ float32 bx_acc_cmd
 float32 bx_acc_e
 float32 bx_acc_i              # integrator for body-x acc controller
 float32 acc_iz_fdb
+float32 acc_bx_filt
+float32 acc_bz_filt
 float32 delt_thrust
 float32 rollrot
 float32 lat_dist

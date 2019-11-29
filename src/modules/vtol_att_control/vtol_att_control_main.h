@@ -211,6 +211,7 @@ private:
 		param_t fw_motors_off;
 		param_t vt_sweep_type;
 		param_t vt_sweep_amp;
+		param_t vt_z_dist_kp;
 		param_t vt_vz_control_kp;
 		param_t vt_vz_control_ki;
 		param_t vt_vz_control_kd;

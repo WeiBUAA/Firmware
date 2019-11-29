@@ -172,7 +172,7 @@ private:
 	math::LowPassFilter2p	_accel_filter_y;
 	math::LowPassFilter2p	_accel_filter_z;
 
-	const float POINT_ACTION[2][POINT_NUM] = {
+	float POINT_ACTION[2][POINT_NUM] = {
 	{0.0f, 2.0f, 3.0f, 4.0f, 5.0f},
 	{0.0f, 80.0f, 80.0f, 0.0f, 80.0f}
 	};

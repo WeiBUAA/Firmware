@@ -75,6 +75,7 @@ struct Params {
 	int32_t fw_motors_off;			/**< bitmask of all motors that should be off in fixed wing mode */
 	int32_t vt_sweep_type;
 	float vt_sweep_amp;
+	float vt_z_dist_kp;
 	float vt_vz_control_kp;
 	float vt_vz_control_ki;
 	float vt_vz_control_kd;

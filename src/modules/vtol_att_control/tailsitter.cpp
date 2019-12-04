@@ -75,9 +75,9 @@ using namespace matrix;
 
 Tailsitter::Tailsitter(VtolAttitudeControl *attc) :
 	VtolType(attc),
-	_accel_filter_x(CTRL_FREQ, 12.0f),
-	_accel_filter_y(CTRL_FREQ, 12.0f),
-	_accel_filter_z(CTRL_FREQ, 12.0f)
+	_accel_filter_x(CTRL_FREQ, 15.0f),
+	_accel_filter_y(CTRL_FREQ, 15.0f),
+	_accel_filter_z(CTRL_FREQ, 15.0f)
 {
 	_vtol_schedule.flight_mode = MC_MODE;
 	_vtol_schedule._trans_start_t = 0.0f;
@@ -134,7 +134,8 @@ void Tailsitter::update_vtol_state()
 	 * forward speed. After the vehicle has picked up enough and sufficient pitch angle the uav will go into FW mode.
 	 * For the backtransition the pitch is controlled in MC mode again and switches to full MC control reaching the sufficient pitch angle.
 	*/
-
+	_vtol_vehicle_status->acc_bx_filt = _accel_filter_x.apply(_sensor_acc->x);
+	_vtol_vehicle_status->acc_bz_filt = _accel_filter_z.apply(_sensor_acc->z);
 	Eulerf_zxy q_zxy(Quatf(_v_att->q));
 	float time_since_trans_start = (float)(hrt_absolute_time() - _vtol_schedule._trans_start_t) * 1e-6f;
 	float pitch = q_zxy.theta();
@@ -287,16 +288,17 @@ float Tailsitter::control_vertical_acc(float time_since_trans_start, float vert_
 {
 	float dt = 1.0f / 250.0f;
 	//float ILC_input    = ILC_in(time_since_trans_start);
-	float bx_acc_filt  = _accel_filter_x.apply(_sensor_acc->x);
-	float bz_acc_filt  = _accel_filter_z.apply(_sensor_acc->z);
+	float bx_acc_filt  = _vtol_vehicle_status->acc_bx_filt ;
+	float bz_acc_filt  = _vtol_vehicle_status->acc_bz_filt ;
 	float pitchrate_filt = _accel_filter_y.apply(_v_att->pitchspeed);
-	//float bx_acc_cmd   = 0.0f;
-	//float bx_acc_err   = 0.0f;
-	//float bx_acc_err_i = 0.0f;
+	float bx_acc_cmd   = 0.0f;
+	float bx_acc_err   = 0.0f;
+	float bx_acc_err_i = 0.0f;
 
 	/* bx_acc_kp and bx_acc_ki are from loopshaping */
-	//float bx_acc_kp    = 0.006f;
-	//float bx_acc_ki    = 0.003f;
+	float bx_acc_kp    = 0.018f;
+	float bx_acc_ki    = 0.02f;
+	float cos_pitch    = 0.0f;
 	float thrust_cmd   = 0.0f;
 
 	matrix::EulerFromQuatf euler = matrix::Quatf(_v_att->q);
@@ -310,27 +312,21 @@ float Tailsitter::control_vertical_acc(float time_since_trans_start, float vert_
 	float acc_iz_err = vert_acc_cmd - acc_iz_fdb;
 	float delt_thrust = -(acc_iz_err - (-_v_att_sp->thrust_body[2] / thrust_to_acc * sinf(pitch) + lift_d_theta(horiz_vel, pitch)) * pitchrate_filt * dt) / cos(pitch) * thrust_to_acc * dt;
 
-	if ((fabsf(pitch) < DEG_TO_RAD(89.999f)) && (fabsf(pitch) >= DEG_TO_RAD(0.001f)))
-	{
-		/***
-		cos_pitch     = math::constrain(cosf(pitch), 0.2f, 1.0f);
-		bx_acc_cmd    = (9.8f + _sensor_acc->z * sinf(pitch) - acc_iz_err) / (cos_pitch - 2.6f * sinf(pitch) * (1 - cosf(pitch)));
-		bx_acc_cmd    = math::constrain(bx_acc_cmd, -2.0f * 9.8f, 2.0f * 9.8f);
-		bx_acc_err    = bx_acc_cmd - _sensor_acc->x;
-		bx_acc_err_i  = _vtol_vehicle_status->bx_acc_i + bx_acc_ki * bx_acc_err * 0.004f;
-		***/
-		
-		thrust_cmd    = -_v_att_sp->thrust_body[2] + delt_thrust;
-	}
-	else
-	{
-		//lift_weight_ratio = 0.0f;
-		thrust_cmd = -_mc_hover_thrust;
-	}
+	cos_pitch     = math::constrain(cosf(pitch), 0.15f, 1.0f);
+	bx_acc_cmd    = bx_acc_filt - (acc_iz_err) / cos_pitch;
+	bx_acc_cmd    = math::constrain(bx_acc_cmd, -2.0f * 9.8f, 2.0f * 9.8f);
+	bx_acc_err    = bx_acc_cmd - bx_acc_filt;
+	bx_acc_err_i  = _vtol_vehicle_status->bx_acc_i + bx_acc_ki * bx_acc_err * dt;
+	thrust_cmd    = (-_mc_hover_thrust) + bx_acc_err * bx_acc_kp + bx_acc_err_i;
+
+		//thrust_cmd = -_v_att_sp->thrust_body[2];
 
 	_vtol_vehicle_status->acc_bx_filt = bx_acc_filt;
 	_vtol_vehicle_status->acc_bz_filt = bz_acc_filt;
 	_vtol_vehicle_status->acc_iz_fdb  = acc_iz_fdb;
+	_vtol_vehicle_status->bx_acc_cmd  = bx_acc_cmd;
+	_vtol_vehicle_status->bx_acc_err  = bx_acc_err;
+	_vtol_vehicle_status->bx_acc_i    = bx_acc_err_i;
 	_vtol_vehicle_status->delt_thrust = delt_thrust;
 
 	return thrust_cmd;
@@ -641,9 +637,10 @@ void Tailsitter::update_transition_state()
 		State_Machine_Initialize();
 		reset_trans_start_state();
 		_vert_i_term = 0.0f;
-		POINT_ACTION[0][1] = _params->front_trans_duration - 2.0f;
-		POINT_ACTION[0][2] = _params->front_trans_duration + 2.0f;
-		POINT_ACTION[1][0] = RAD_TO_DEG(0.0f);//RAD_TO_DEG(_trans_start_pitch);
+		_vtol_vehicle_status->bx_acc_cmd = _vtol_vehicle_status->acc_bx_filt;
+		//POINT_ACTION[0][1] = _params->front_trans_duration - 2.0f;
+		//POINT_ACTION[0][2] = _params->front_trans_duration + 2.0f;
+		//POINT_ACTION[1][0] = RAD_TO_DEG(0.0f);//RAD_TO_DEG(_trans_start_pitch);
 	}
 
 	float time_since_trans_start = (float)(hrt_absolute_time() - _vtol_schedule._trans_start_t) * 1e-6f;

@@ -16,7 +16,7 @@ float32 pitch_ang
 float32 vert_acc_cmd
 float32 thrust_cmd
 float32 bx_acc_cmd
-float32 bx_acc_e
+float32 bx_acc_err
 float32 bx_acc_i              # integrator for body-x acc controller
 float32 acc_iz_fdb
 float32 acc_bx_filt

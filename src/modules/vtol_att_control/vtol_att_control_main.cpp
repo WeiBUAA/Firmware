@@ -746,6 +746,7 @@ void VtolAttitudeControl::task_main()
 		vehicle_manual_poll();
 		vehicle_attitude_poll();
 		vehicle_local_pos_poll();
+		vehicle_gps_pos_poll();
 		vehicle_local_pos_sp_poll();
 		sensor_acc_poll();
 		mission_result_poll();

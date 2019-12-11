@@ -260,7 +260,7 @@ void Tailsitter::reset_trans_start_state()
 	_yaw             = _trans_start_yaw;
 
 	_mc_hover_thrust = _v_att_sp->thrust_body[2];
-	_alt_sp          = _local_pos->z;
+	_alt_sp          = -float(_gps_pos->alt*0.001f);
 	_trans_start_y   = _local_pos->y;
 	_trans_start_x   = _local_pos->x;
 }
@@ -428,7 +428,7 @@ float Tailsitter::control_altitude(float time_since_trans_start, float alt_cmd, 
 {
 	/* position loop P controller */
 	float alt_kp = _params->vt_z_dist_kp;
-	float vz_cmd = (alt_cmd -_local_pos->z) * alt_kp;
+	float vz_cmd = (alt_cmd +float(_gps_pos->alt*0.001f)) * alt_kp;
 
 	/* velocity loop PID controller */
 	float vel_kp = _params->vt_vz_control_kp;
@@ -443,7 +443,7 @@ float Tailsitter::control_altitude(float time_since_trans_start, float alt_cmd, 
 	//v_I_output = math::constrain(v_I_output, -0.8f, 0.8f);
 	float v_D_output = vel_kd * (vel_error - _VZ_PID_Control.last_D_state);
 	float vert_acc_cmd = (v_P_output + v_I_output + v_D_output) * 9.8f;
-	vert_acc_cmd = (alt_cmd -_local_pos->z) * alt_kp + vel_kp * (- _local_pos->vz) + ILC_in(time_since_trans_start) / 0.5f *9.8f;
+	//vert_acc_cmd = (alt_cmd +float(_gps_pos->alt*0.001f)) * alt_kp + vel_kp * (- _local_pos->vz) + ILC_in(time_since_trans_start) / 0.5f *9.8f;
 
 	_VZ_PID_Control.last_run     = now;	
 	_VZ_PID_Control.last_I_state = v_I_output;
@@ -722,7 +722,7 @@ void Tailsitter::update_transition_state()
 			#ifdef SYSIDT
 			_v_att_sp->thrust_body[2] = control_altitude(time_since_trans_start, _alt_sp, VERT_CONTROL_MODE);
 			#else
-			_alt_sp = _local_pos->z;
+			_alt_sp = -float(_gps_pos->alt*0.001f);
 			_v_att_sp->thrust_body[2] = -_fw_virtual_att_sp->thrust_body[0];
 			PID_Initialize();
 			#endif

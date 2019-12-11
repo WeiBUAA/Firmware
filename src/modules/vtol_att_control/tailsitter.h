@@ -175,7 +175,7 @@ private:
 
 	const float POINT_ACTION[2][POINT_NUM] = {
 	{0.0f, 2.5f, 3.2f, 5.1f, 7.0f},
-	{0.0f, 75.0f, 75.0f, 27.44f, 27.44f}
+	{0.0f, 75.0f, 75.0f, 27.44f, 75.0}
 	};
 
 	float _alt_sp;

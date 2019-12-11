@@ -74,6 +74,7 @@
 #include <uORB/topics/vehicle_control_mode.h>
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/vehicle_gps_position.h>
 #include <uORB/topics/vehicle_local_position_setpoint.h>
 #include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/topics/vtol_vehicle_status.h>
@@ -114,6 +115,7 @@ public:
 	struct vehicle_control_mode_s 			*get_control_mode() {return &_v_control_mode;}
 	struct vehicle_land_detected_s			*get_land_detected() {return &_land_detected;}
 	struct vehicle_local_position_s 		*get_local_pos() {return &_local_pos;}
+	struct vehicle_gps_position_s 		*get_gps_pos() {return &_gps_pos;}
 	struct vehicle_local_position_setpoint_s	*get_local_pos_sp() {return &_local_pos_sp;}
 	struct vtol_vehicle_status_s			*get_vtol_vehicle_status() {return &_vtol_vehicle_status;}
 	struct sensor_accel_s                   *get_sensor_acc() {return &_sensor_acc;}
@@ -134,7 +136,8 @@ private:
 	int	_fw_virtual_att_sp_sub{-1};
 	int	_land_detected_sub{-1};
 	int	_local_pos_sp_sub{-1};			// setpoint subscription
-	int	_local_pos_sub{-1};			// sensor subscription
+	int	_local_pos_sub{-1};			// fusion position subscription
+	int	_gps_pos_sub{-1};			// gps position subscription
 	int _sensor_acc_sub{-1};
 	int	_manual_control_sp_sub{-1};	//manual control setpoint subscription
 	int	_mc_virtual_att_sp_sub{-1};
@@ -175,6 +178,7 @@ private:
 	vehicle_control_mode_s			_v_control_mode{};	//vehicle control mode
 	vehicle_land_detected_s			_land_detected{};
 	vehicle_local_position_s			_local_pos{};
+	vehicle_gps_position_s			_gps_pos{};
 	vehicle_local_position_setpoint_s	_local_pos_sp{};
 	vtol_vehicle_status_s 			_vtol_vehicle_status{};
 	sensor_accel_s                  _sensor_acc{};
@@ -220,6 +224,9 @@ private:
 		param_t vt_vz_minspeed;
 		param_t vt_vz_maxspeed;
 		param_t vt_vz_interval;
+		param_t vt_acc_bx_kp;
+		param_t vt_acc_bx_ki;
+		param_t vt_acc_bx_ff;
 		param_t vt_y_dist_kp;
 		param_t vt_vy_kp;
 		param_t vt_vy_ki;
@@ -263,7 +270,8 @@ private:
 	void 		mc_virtual_att_sp_poll();
 	void 		pos_sp_triplet_poll();		// Check for changes in position setpoint values
 	void 		vehicle_airspeed_poll();		// Check for changes in airspeed
-	void 		vehicle_local_pos_poll();		// Check for changes in sensor values
+	void 		vehicle_local_pos_poll();		// Check for changes in fusion position
+	void 		vehicle_gps_pos_poll();         // Check for changes in gps position
 	void 		vehicle_local_pos_sp_poll();		// Check for changes in setpoint values
 	void        sensor_acc_poll();
 	void        mission_result_poll();

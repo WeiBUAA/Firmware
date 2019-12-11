@@ -61,6 +61,7 @@ VtolType::VtolType(VtolAttitudeControl *att_controller) :
 	_actuators_mc_in = _attc->get_actuators_mc_in();
 	_actuators_fw_in = _attc->get_actuators_fw_in();
 	_local_pos = _attc->get_local_pos();
+	_gps_pos = _attc->get_gps_pos();
 	_local_pos_sp = _attc->get_local_pos_sp();
 	_airspeed = _attc->get_airspeed();
 	_tecs_status = _attc->get_tecs_status();

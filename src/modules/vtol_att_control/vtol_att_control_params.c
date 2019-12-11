@@ -182,12 +182,31 @@ PARAM_DEFINE_FLOAT(VT_VZ_MAXSPEED, 3.0f);
 
 PARAM_DEFINE_FLOAT(VT_VZ_INTERVAL,1.0f);
 
+
+/*
+* The parameters of the body-x acceleration controller
+* Kp 
+*/
+PARAM_DEFINE_FLOAT(VT_ACC_BX_KP, 0.025f);
+
+
+/*
+* The parameters of the body-x acceleration controller
+* Ki 
+*/
+PARAM_DEFINE_FLOAT(VT_ACC_BX_KI, 0.18f);
+
+/*
+* The parameters of the body-x acceleration controller feedforward
+* ff 
+*/
+PARAM_DEFINE_FLOAT(VT_ACC_BX_FF, 0.02f);
+
+
 /*
 * The parameters of the lateral dist controller
 * Kp 
 */
-
-
 PARAM_DEFINE_FLOAT(VT_Y_DIST_KP, 0.1f);
 
 /*

@@ -84,6 +84,9 @@ struct Params {
 	float vt_vz_minspeed;
 	float vt_vz_maxspeed;
 	float vt_vz_interval;
+	float vt_acc_bx_kp;
+	float vt_acc_bx_ki;
+	float vt_acc_bx_ff;
 	float vt_y_dist_kp;
 	float vt_vy_kp;
 	float vt_vy_ki;
@@ -214,6 +217,7 @@ protected:
 	struct actuator_controls_s			*_actuators_mc_in;			//actuator controls from mc_att_control
 	struct actuator_controls_s			*_actuators_fw_in;			//actuator controls from fw_att_control
 	struct vehicle_local_position_s			*_local_pos;
+	struct vehicle_gps_position_s			*_gps_pos;
 	struct vehicle_local_position_setpoint_s	*_local_pos_sp;
 	struct airspeed_s 				*_airspeed;					// airspeed
 	struct tecs_status_s				*_tecs_status;

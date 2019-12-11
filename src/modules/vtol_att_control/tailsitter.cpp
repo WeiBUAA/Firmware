@@ -115,16 +115,6 @@ void Tailsitter::parameters_update()
 	param_get(_params_handles_tailsitter.sys_ident_num, &v);
 	_params_tailsitter.sys_ident_num = v;
 
-	/* update the CL points */
-	int iden_num = 0;
-	if ((_params_tailsitter.sys_ident_num >= 9) && (_params_tailsitter.sys_ident_num >= 0)) {
-		iden_num = _params_tailsitter.sys_ident_num;
-	}
-
-	memcpy(_CL_Degree, CL_SYS_ID[iden_num], sizeof(_CL_Degree));
-
-	//mavlink_log_critical(&mavlink_log_pub, "sys_ident_cl_point:%.5f inttest:%d", (double)(_CL_Degree[19]), int(16.99f * 1));
-
 }
 
 void Tailsitter::update_vtol_state()
@@ -275,6 +265,23 @@ void Tailsitter::reset_trans_start_state()
 	_trans_start_x   = _local_pos->x;
 }
 
+float Tailsitter::ILC_in(float time_since_trans_start)
+{
+	float input = 0.0f;
+	if ((time_since_trans_start > 0.0001f) && (time_since_trans_start < (POINT_ACTION[0][POINT_NUM-1] + 0.99f))) {
+		int index_left = int(time_since_trans_start * 25);
+		if (index_left <= 197)
+		{
+			input = U_ILC_INPUT[index_left] + (time_since_trans_start * 25.0f - index_left) * (U_ILC_INPUT[index_left + 1] - U_ILC_INPUT[index_left]);
+			return input;
+		}
+		return 0.0f;
+	}
+	else {
+		return 0.0f;
+	}
+}
+
 
 /***
  *	calculate the thrust feedforward cmd based on the vertical acceleration cmd, horizontal velocity, pitch angle and ang-of-attack
@@ -296,8 +303,9 @@ float Tailsitter::control_vertical_acc(float time_since_trans_start, float vert_
 	float bx_acc_err_i = 0.0f;
 
 	/* bx_acc_kp and bx_acc_ki are from loopshaping */
-	float bx_acc_kp    = 0.018f;
-	float bx_acc_ki    = 0.02f;
+	float bx_acc_kp    = _params->vt_acc_bx_kp;
+	float bx_acc_ki    = _params->vt_acc_bx_ki;
+	float bx_acc_ff    = _params->vt_acc_bx_ff;
 	float cos_pitch    = 0.0f;
 	float thrust_cmd   = 0.0f;
 
@@ -310,16 +318,20 @@ float Tailsitter::control_vertical_acc(float time_since_trans_start, float vert_
 	float thrust_to_acc = fabsf(_mc_hover_thrust / 9.8f);
 	float acc_iz_fdb = (bz_acc_filt * sinf(-pitch) - bx_acc_filt * cosf(pitch))*cosf(roll) + 9.8f;
 	float acc_iz_err = vert_acc_cmd - acc_iz_fdb;
-	float delt_thrust = -(acc_iz_err - (-_v_att_sp->thrust_body[2] / thrust_to_acc * sinf(pitch) + lift_d_theta(horiz_vel, pitch)) * pitchrate_filt * dt) / cos(pitch) * thrust_to_acc * dt;
+	float delt_thrust = -(acc_iz_err * 1.8f - (-_v_att_sp->thrust_body[2] / thrust_to_acc * sinf(pitch) + lift_d_theta(horiz_vel, pitch)) * pitchrate_filt * dt) / cos(pitch) * thrust_to_acc * dt;
 
-	cos_pitch     = math::constrain(cosf(pitch), 0.15f, 1.0f);
+	cos_pitch     = math::constrain(cosf(pitch), 0.1f, 1.0f);
 	bx_acc_cmd    = bx_acc_filt - (acc_iz_err) / cos_pitch;
-	bx_acc_cmd    = math::constrain(bx_acc_cmd, -2.0f * 9.8f, 2.0f * 9.8f);
+	bx_acc_cmd    = math::constrain(bx_acc_cmd, -3.0f * 9.8f, 3.0f * 9.8f);
 	bx_acc_err    = bx_acc_cmd - bx_acc_filt;
-	bx_acc_err_i  = _vtol_vehicle_status->bx_acc_i + bx_acc_ki * bx_acc_err * dt;
-	thrust_cmd    = (-_mc_hover_thrust) + bx_acc_err * bx_acc_kp + bx_acc_err_i;
+	bx_acc_err_i  = _vtol_vehicle_status->bx_acc_i + delt_thrust * 1.3f + bx_acc_ki * bx_acc_err * dt;
+	bx_acc_err_i  = math::constrain(bx_acc_err_i, -1.0f, 1.0f);
+	thrust_cmd    = (-_mc_hover_thrust) + bx_acc_err * bx_acc_kp + bx_acc_err_i + (bx_acc_cmd - 9.8f) * bx_acc_ff; //- ILC_in(time_since_trans_start) / cos_pitch;
 
-		//thrust_cmd = -_v_att_sp->thrust_body[2];
+	
+	//delt_thrust = -(acc_iz_err - (-_v_att_sp->thrust_body[2] / thrust_to_acc * sinf(pitch) + lift_d_theta(horiz_vel, pitch)) * pitchrate_filt * dt) / cos(pitch) * thrust_to_acc * dt;
+	//thrust_cmd = math::constrain(-_v_att_sp->thrust_body[2] + delt_thrust, 0.25f,0.8f);
+	
 
 	_vtol_vehicle_status->acc_bx_filt = bx_acc_filt;
 	_vtol_vehicle_status->acc_bz_filt = bz_acc_filt;
@@ -416,7 +428,7 @@ float Tailsitter::control_altitude(float time_since_trans_start, float alt_cmd, 
 {
 	/* position loop P controller */
 	float alt_kp = _params->vt_z_dist_kp;
-	float vz_cmd = (alt_cmd - _local_pos->z) * alt_kp;
+	float vz_cmd = (alt_cmd -_local_pos->z) * alt_kp;
 
 	/* velocity loop PID controller */
 	float vel_kp = _params->vt_vz_control_kp;
@@ -428,9 +440,10 @@ float Tailsitter::control_altitude(float time_since_trans_start, float alt_cmd, 
 	float vel_error  = vz_cmd - _local_pos->vz;
 	float v_P_output = vel_kp * vel_error;
 	float v_I_output =  vel_ki * vel_error * dt + _VZ_PID_Control.last_I_state;
-	v_I_output = math::constrain(v_I_output, -0.8f, 0.8f);
+	//v_I_output = math::constrain(v_I_output, -0.8f, 0.8f);
 	float v_D_output = vel_kd * (vel_error - _VZ_PID_Control.last_D_state);
 	float vert_acc_cmd = (v_P_output + v_I_output + v_D_output) * 9.8f;
+	//vert_acc_cmd = (alt_cmd -_local_pos->z) * alt_kp + vel_kp * (- _local_pos->vz) + ILC_in(time_since_trans_start) / 0.5f *9.8f;
 
 	_VZ_PID_Control.last_run     = now;	
 	_VZ_PID_Control.last_I_state = v_I_output;
@@ -442,7 +455,7 @@ float Tailsitter::control_altitude(float time_since_trans_start, float alt_cmd, 
 	switch(control_loop_mode)
 	{
 		case CONTROL_ACC:
-			thrust_cmd = math::constrain(control_vertical_acc(time_since_trans_start, vert_acc_cmd, vz_cmd), 0.10f, 0.95f);
+			thrust_cmd = math::constrain(control_vertical_acc(time_since_trans_start, vert_acc_cmd, vz_cmd), 0.0f, 1.0f);
 			break;
 		case CONTROL_VEL_WITHOUT_ACC:
 		case CONTROL_POS:
@@ -456,6 +469,7 @@ float Tailsitter::control_altitude(float time_since_trans_start, float alt_cmd, 
 	_vtol_vehicle_status->vz_cmd       = vz_cmd;
 	//_vtol_vehicle_status->ilc_input    = ILC_input;
 	_vtol_vehicle_status->vert_acc_cmd = vert_acc_cmd;
+	_vtol_vehicle_status->ilc_inpt = ILC_in(time_since_trans_start);
 	_vtol_vehicle_status->thrust_cmd   = thrust_cmd;
 	_vtol_vehicle_status->ticks_since_trans ++;
 
@@ -481,7 +495,11 @@ float Tailsitter::calc_pitch_rot(float time_since_trans_start) {
 		angle = DEG_TO_RAD(POINT_ACTION[1][POINT_NUM - 1]);
 	}
 
-	mavlink_log_critical(&mavlink_log_pub, "pitchsp:%.5f", (double)(-RAD_TO_DEG(angle)));
+	if (0)
+	{
+		mavlink_log_critical(&mavlink_log_pub, "pitchsp:%.5f", (double)(-RAD_TO_DEG(angle)));
+	}
+	
 	return -1.0f * angle;
 }
 
@@ -511,7 +529,7 @@ float Tailsitter::calc_roll_sp()
 	// longitudinal_v = sqrtf(vx * vx + vy * vy) * cosf(atan2f(vy, vx) - _mc_virtual_att_sp-> yaw_body);
 
 	// PI controller of lateral dist
-	Kp = _params->vt_y_dist_kp;
+	Kp  = _params->vt_y_dist_kp;
 	Kvp = _params->vt_vy_kp;
 	Kvi = _params->vt_vy_ki;
 
@@ -637,6 +655,7 @@ void Tailsitter::update_transition_state()
 		State_Machine_Initialize();
 		reset_trans_start_state();
 		_vert_i_term = 0.0f;
+		_vtol_vehicle_status->bx_acc_i = 0.0f;
 		_vtol_vehicle_status->bx_acc_cmd = _vtol_vehicle_status->acc_bx_filt;
 		//POINT_ACTION[0][1] = _params->front_trans_duration - 2.0f;
 		//POINT_ACTION[0][2] = _params->front_trans_duration + 2.0f;
@@ -832,7 +851,7 @@ void Tailsitter::fill_actuator_outputs()
 		_actuators_out_0->control[actuator_controls_s::INDEX_THROTTLE] = _fw_virtual_att_sp->thrust_body[0];//_actuators_fw_in->control[actuator_controls_s::INDEX_THROTTLE];
 		#endif
 
-		_actuators_out_1->control[actuator_controls_s::INDEX_ROLL] = -_actuators_fw_in->control[actuator_controls_s::INDEX_ROLL];	// roll elevon
+		_actuators_out_1->control[actuator_controls_s::INDEX_ROLL]  = -_actuators_fw_in->control[actuator_controls_s::INDEX_ROLL];	// roll elevon
 		_actuators_out_1->control[actuator_controls_s::INDEX_PITCH] = -_actuators_fw_in->control[actuator_controls_s::INDEX_PITCH];	// pitch elevon
 
 

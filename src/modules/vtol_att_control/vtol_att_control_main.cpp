@@ -100,7 +100,10 @@ VtolAttitudeControl::VtolAttitudeControl()
 	_params_handles.vt_vz_keeptime = param_find("VT_VZ_KEEPTIME");
 	_params_handles.vt_vz_minspeed = param_find("VT_VZ_MINSPEED");
 	_params_handles.vt_vz_maxspeed = param_find("VT_VZ_MAXSPEED");
-	_params_handles.vt_vz_interval = param_find("VT_VZ_INTERVAL");	
+	_params_handles.vt_vz_interval = param_find("VT_VZ_INTERVAL");
+	_params_handles.vt_acc_bx_kp = param_find("VT_ACC_BX_KP");
+	_params_handles.vt_acc_bx_ki = param_find("VT_ACC_BX_KI");
+	_params_handles.vt_acc_bx_ff = param_find("VT_ACC_BX_FF");
 	_params_handles.vt_y_dist_kp = param_find("VT_Y_DIST_KP");
 	_params_handles.vt_vy_kp = param_find("VT_VY_KP");
 	_params_handles.vt_vy_ki = param_find("VT_VY_KI");
@@ -266,6 +269,21 @@ VtolAttitudeControl::vehicle_local_pos_poll()
 		orb_copy(ORB_ID(vehicle_local_position), _local_pos_sub, &_local_pos);
 	}
 
+}
+
+/**
+* Check for gps sensor updates.
+*/
+void
+VtolAttitudeControl::vehicle_gps_pos_poll()
+{
+	bool updated;
+	/* Check if parameters have changed */
+	orb_check(_gps_pos_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(vehicle_gps_position), _gps_pos_sub, &_gps_pos);
+	}
 }
 
 /**
@@ -558,6 +576,12 @@ VtolAttitudeControl::parameters_update()
 	param_get(_params_handles.vt_vz_maxspeed, &_params.vt_vz_maxspeed);
 	
 	param_get(_params_handles.vt_vz_interval, &_params.vt_vz_interval);
+
+	param_get(_params_handles.vt_acc_bx_kp, &_params.vt_acc_bx_kp);
+
+	param_get(_params_handles.vt_acc_bx_ki, &_params.vt_acc_bx_ki);
+
+	param_get(_params_handles.vt_acc_bx_ff, &_params.vt_acc_bx_ff);
 
 	param_get(_params_handles.vt_y_dist_kp, &_params.vt_y_dist_kp);
 

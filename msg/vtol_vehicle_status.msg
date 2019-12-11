@@ -14,6 +14,7 @@ uint64  ticks_since_trans               # for ILC debug
 float32 pitch_sp
 float32 pitch_ang
 float32 vert_acc_cmd
+float32 ilc_inpt
 float32 thrust_cmd
 float32 bx_acc_cmd
 float32 bx_acc_err

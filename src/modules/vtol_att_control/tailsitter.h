@@ -79,6 +79,7 @@ public:
 	//virtual float control_vertical_speed(float vz, float vz_cmd);
 	virtual float control_sideslip(float dt);
 	virtual void  reset_trans_start_state();
+	virtual float ILC_in(float time_since_trans_start);
 	virtual float calc_vz_cmd(float time_since_trans_start);
 	virtual float control_altitude(float time_since_trans_start, float alt_cmd, int control_loop_mode);
 	virtual float control_vertical_acc(float time_since_trans_start, float vert_acc_cmd, float vert_vel_cmd);
@@ -172,10 +173,18 @@ private:
 	math::LowPassFilter2p	_accel_filter_y;
 	math::LowPassFilter2p	_accel_filter_z;
 
+
 	const float POINT_ACTION[2][POINT_NUM] = {
-	{0.0f, 2.0f, 3.0f, 4.0f, 5.0f},
-	{0.0f, 80.0f, 80.0f, 0.0f, 80.0f}
+	{0.0f, 2.5f, 3.2f, 5.1f, 7.0f},
+	{0.0f, 75.0f, 75.0f, 54.88f, 75.00f}
 	};
+
+/***
+	const float POINT_ACTION[2][POINT_NUM] = {
+	{0.0f, 2.5f, 3.2f, 5.1f, 7.0f},
+	{0.0f, 75.0f, 75.0f, 27.44f, 75.00f}
+	};
+***/
 
 	float _alt_sp;
 	float _last_run_time;
@@ -189,7 +198,6 @@ private:
 	float _trans_start_yaw;
 	float _trans_start_pitch;
 	float _trans_start_roll;
-	float _CL_Degree[NUM_CL_POINTS+1];
 	float _target_alt;
 	float _yaw;
 	float _pitch;

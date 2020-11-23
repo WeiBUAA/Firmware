@@ -616,9 +616,9 @@ void Logger::add_default_topics()
 {
 	// Note: try to avoid setting the interval where possible, as it increases RAM usage
 	add_topic("actuator_controls_0", 0);
-	add_topic("actuator_controls_1", 100);
+	// add_topic("actuator_controls_1", 100);
 	add_topic("actuator_outputs", 0);
-	add_topic("airspeed", 0);
+	// add_topic("airspeed", 0);
 	add_topic("battery_status", 500);
 	//add_topic("camera_capture");
 	//add_topic("camera_trigger");
@@ -636,11 +636,10 @@ void Logger::add_default_topics()
 	add_topic("manual_control_setpoint", 200);
 	add_topic("mission",0);
 	add_topic("mission_result",0);
-	add_topic("fw_virtual_attitude_setpoint",0);
+	// add_topic("fw_virtual_attitude_setpoint",0);
 	add_topic("mc_virtual_attitude_setpoint",0);
-	add_topic("actuator_controls_virtual_fw",0);
+	// add_topic("actuator_controls_virtual_fw",0);
 	add_topic("actuator_controls_virtual_mc",0);
-	//add_topic("optical_flow", 50);
 	add_topic("position_setpoint_triplet", 200);
 	add_topic("vehicle_control_mode", 0);
 	add_topic("radio_status");
@@ -649,15 +648,15 @@ void Logger::add_default_topics()
 	add_topic("sensor_accel");
 	//add_topic("sensor_preflight", 200);
 	add_topic("system_power", 500);
-	add_topic("tecs_status", 0);
+	// add_topic("tecs_status", 0);
 	add_topic("trajectory_setpoint", 200);
 	add_topic("telemetry_status",20);
-	add_topic("vehicle_air_data", 200);
+	// add_topic("vehicle_air_data", 200);
 	add_topic("vehicle_attitude", 0);
 	add_topic("vehicle_attitude_setpoint", 0);
 	add_topic("vehicle_command");
-	add_topic("vehicle_global_position", 0);
-	add_topic("vehicle_gps_position", 0);
+	// add_topic("vehicle_global_position", 0);
+	// add_topic("vehicle_gps_position", 0);
 	//add_topic("vehicle_land_detected");
 	add_topic("vehicle_local_position", 0);
 	add_topic("vehicle_local_position_setpoint", 0);
@@ -665,8 +664,9 @@ void Logger::add_default_topics()
 	add_topic("vehicle_rates_setpoint", 0);
 	add_topic("vehicle_status", 200);
 	add_topic("vehicle_status_flags", 100);
-	add_topic("vtol_vehicle_status", 0);
-	add_topic("wind_estimate", 0);
+	// add_topic("vtol_vehicle_status", 0);
+	// add_topic("wind_estimate", 0);
+	add_topic("vehicle_visual_odometry");
 
 #ifdef CONFIG_ARCH_BOARD_PX4_SITL
 	add_topic("actuator_controls_virtual_fw");

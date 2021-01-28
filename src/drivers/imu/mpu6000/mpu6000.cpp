@@ -1789,7 +1789,8 @@ MPU6000::measure()
 	arb.y = _accel_filter_y.apply(y_in_new);
 	arb.z = _accel_filter_z.apply(z_in_new);
 
-	matrix::Vector3f aval(x_in_new, y_in_new, z_in_new);
+	// matrix::Vector3f aval(x_in_new, y_in_new, z_in_new);
+	matrix::Vector3f aval(arb.x, arb.y, arb.z);
 	matrix::Vector3f aval_integrated;
 
 	bool accel_notify = _accel_int.put(arb.timestamp, aval, aval_integrated, arb.integral_dt);
@@ -1828,7 +1829,8 @@ MPU6000::measure()
 	grb.y = _gyro_filter_y.apply(y_gyro_in_new);
 	grb.z = _gyro_filter_z.apply(z_gyro_in_new);
 
-	matrix::Vector3f gval(x_gyro_in_new, y_gyro_in_new, z_gyro_in_new);
+	// matrix::Vector3f gval(x_gyro_in_new, y_gyro_in_new, z_gyro_in_new);
+	matrix::Vector3f gval(grb.x, grb.y, grb.z);
 	matrix::Vector3f gval_integrated;
 
 	bool gyro_notify = _gyro_int.put(arb.timestamp, gval, gval_integrated, grb.integral_dt);
